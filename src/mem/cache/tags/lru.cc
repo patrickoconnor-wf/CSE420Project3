@@ -100,6 +100,7 @@ LRU::LRU(const Params *p)
             // locate next cache block
             BlkType *blk = &blks[blkIndex];
             blk->data = &dataBlks[blkSize*blkIndex];
+            blk->rrpv = assoc - 1;
             ++blkIndex;
 
             // invalidate new cache block
@@ -147,9 +148,9 @@ LRU::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
     }
 
     if (blk != NULL) {
-        // move this block to head of the MRU list
-        sets[set].moveToHead(blk);
-        DPRINTF(CacheRepl, "set %x: moving blk %x (%s) to MRU\n",
+        //Decrement this block's RRPV to 0
+        sets[set].rrpv = 0;
+        DPRINTF(CacheRepl, "set %x: setting blk %x (%s) RRPV to 0t\n",
                 set, regenerateBlkAddr(tag, set), is_secure ? "s" : "ns");
         if (blk->whenReady > curTick()
             && cache->ticksToCycles(blk->whenReady - curTick()) > hitLatency) {
@@ -176,7 +177,35 @@ LRU::findVictim(Addr addr)
 {
     unsigned set = extractSet(addr);
     // grab a replacement candidate
-    BlkType *blk = sets[set].blks[assoc-1];
+    // BlkType *blk = sets[set].blks[assoc-1];
+
+    // The replacement will be found from left to right. 
+    // The first blk with RRPV of assoc - 1 will be the replaced blk
+    int block_index = 0; //This is an int used as an index for the blocks in the set
+    int loop_index = 0; //This is an int that is incrememnted when no rrpv = assoc - 1
+    int rrpv_boundry = assoc - 1; // This value is used to compare to rrpv of blocks
+    int loop_limit = assoc; // Outer while loop should not exceed this value
+
+    bool found_victim = false;
+
+    while (!found_victim && loop_index < loop_limit){
+        while (!found_victim && block_index < assoc){
+            BlkType *blk = sets[set].blks[block_index];
+            if(blk->rrpv == rrpv_boundry){
+                found_victim = true;
+            }
+            block_index++;
+        }
+        block_index = 0;
+        // If none of the blocks have an rrpv of assoc - 1, then loop through again 
+        // incrementing all the rrpv's
+        for (block_index = 0; block_index < assoc && !found_victim; block_index++){
+            BlkType *blk = sets[set].blks[block_index];
+            blk->rrpv++;
+        }
+        loop_index++;
+    }
+
 
     if (blk->isValid()) {
         DPRINTF(CacheRepl, "set %x: selecting blk %x for replacement\n",
@@ -253,7 +282,10 @@ LRU::invalidate(BlkType *blk)
 
     // should be evicted before valid blocks
     unsigned set = blk->set;
-    sets[set].moveToTail(blk);
+    //sets[set].moveToTail(blk);
+
+    //Invalidating a block should only involve maxing out its rrpv
+    blk->rrpv = assoc - 1;
 }
 
 void
