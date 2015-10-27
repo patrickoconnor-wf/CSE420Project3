@@ -149,7 +149,7 @@ LRU::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
 
     if (blk != NULL) {
         //Decrement this block's RRPV to 0
-        sets[set].rrpv = 0;
+        blk->rrpv = 0;
         DPRINTF(CacheRepl, "set %x: setting blk %x (%s) RRPV to 0t\n",
                 set, regenerateBlkAddr(tag, set), is_secure ? "s" : "ns");
         if (blk->whenReady > curTick()
@@ -187,6 +187,7 @@ LRU::findVictim(Addr addr)
     int loop_limit = assoc; // Outer while loop should not exceed this value
 
     bool found_victim = false;
+    BlkType *blk = NULL;
 
     while (!found_victim && loop_index < loop_limit){
         while (!found_victim && block_index < assoc){
@@ -260,8 +261,10 @@ LRU::insertBlock(PacketPtr pkt, BlkType *blk)
     blk->task_id = task_id;
     blk->tickInserted = curTick();
 
-    unsigned set = extractSet(addr);
-    sets[set].moveToHead(blk);
+    //unsigned set = extractSet(addr);
+    //sets[set].moveToHead(blk);
+    // At this point do we just set the blks rrpv to 2?
+    blk->rrpv = assoc - 2;
 
     // We only need to write into one tag and one data block.
     tagAccesses += 1;
@@ -281,7 +284,7 @@ LRU::invalidate(BlkType *blk)
     blk->tickInserted = curTick();
 
     // should be evicted before valid blocks
-    unsigned set = blk->set;
+    //unsigned set = blk->set;
     //sets[set].moveToTail(blk);
 
     //Invalidating a block should only involve maxing out its rrpv
