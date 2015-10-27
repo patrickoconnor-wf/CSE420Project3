@@ -1,5 +1,4 @@
-/*
- * Copyright (c) 2012-2013 ARM Limited
+ /* Copyright (c) 2012-2013 ARM Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -177,7 +176,7 @@ class CacheBlk
           set(-1), isTouched(false), refCount(0),
           srcMasterId(Request::invldMasterId),
           tickInserted(0),
-          rrpv(0)
+          rrpv(3)
     {}
 
     /**
@@ -238,6 +237,7 @@ class CacheBlk
         status = 0;
         isTouched = false;
         clearLoadLocks();
+        rrpv = 3;
     }
 
     /**
