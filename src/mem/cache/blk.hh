@@ -195,6 +195,7 @@ class CacheBlk
         set = rhs.set;
         refCount = rhs.refCount;
         task_id = rhs.task_id;
+        rrpv = rhs.rrpv;
         return *this;
     }
 

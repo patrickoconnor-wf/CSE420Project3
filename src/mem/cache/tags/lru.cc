@@ -191,16 +191,16 @@ LRU::findVictim(Addr addr)
     int block_index = 0; //This is an int used as an index for the blocks in the set
     int loop_index = 0; //This is an int that is incrememnted when no rrpv = 3
     int rrpv_boundry = 3; // This value is used to compare to rrpv of blocks
-    int loop_limit = assoc; // Outer while loop should not exceed this value
+    int loop_limit = 3; // Outer while loop should not exceed this value
 
     bool found_victim = false;
-    BlkType *blk = NULL;
+    BlkType *blk = (BlkType*)malloc(sizeof(BlkType));
 
-    while (!found_victim && loop_index < loop_limit){
+    while (!found_victim && loop_index < loop_limit && loop_index < assoc){
         printf("!found_victim && loop_index < loop_limit\n");
-        while (!found_victim && block_index < assoc){
-            printf("!found_victim && block_index < assoc\n");
-            BlkType *blk = sets[set].blks[block_index];
+        while (!found_victim && block_index <= rrpv_boundry){
+            printf("!found_victim && block_index <= rrpv_boundry\n");
+            blk = sets[set].blks[block_index];
             printf("Assigned blk\n");
             if(blk->rrpv == rrpv_boundry){
                 printf("VICTIM FOUND WITH RRPV VALUE OF %d\n", blk->rrpv);
@@ -215,7 +215,7 @@ LRU::findVictim(Addr addr)
         // incrementing all the rrpv's
         for (block_index = 0; block_index < 4 && !found_victim; block_index++){
             printf("block_index = 0; block_index < 4 && !found_victim; block_index++\n");
-            BlkType *blk = sets[set].blks[block_index];
+            blk = sets[set].blks[block_index];
             blk->rrpv++;
         }
         loop_index++;
@@ -230,6 +230,9 @@ LRU::findVictim(Addr addr)
                 set, regenerateBlkAddr(blk->tag, set));
     }
     printf("RETURNING LRU VICTIM\n");
+    // BlkType *blkCopy = NULL;
+    // memcpy(blkCopy, blk, sizeof(BlkType));
+    // free(blk);
     return blk;
 }
 
