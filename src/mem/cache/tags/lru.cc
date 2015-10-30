@@ -61,7 +61,6 @@ LRU::LRU(const Params *p)
      numSets(p->size / (p->block_size * p->assoc)),
      sequentialAccess(p->sequential_access)
 {
-    printf("LRU HAS STARTED CONSTRUCTION\n");
     // Check parameters
     if (blkSize < 4 || !isPowerOf2(blkSize)) {
         fatal("Block size must be at least 4 and a power of 2");
@@ -119,7 +118,6 @@ LRU::LRU(const Params *p)
             blk->set = i;
         }
     }
-    printf("LRU HAS BEEN CONSTRUCTED\n");
 }
 
 LRU::~LRU()
@@ -132,7 +130,6 @@ LRU::~LRU()
 LRU::BlkType*
 LRU::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
 {
-    printf("ACCESSING LRU BLOCK\n");
     Addr tag = extractTag(addr);
     unsigned set = extractSet(addr);
     BlkType *blk = sets[set].findBlk(tag, is_secure);
@@ -161,7 +158,6 @@ LRU::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
         }
         blk->refCount += 1;
     }
-    printf("LRU HAS BEEN ACCESSED\n");
     return blk;
 }
 
@@ -169,77 +165,49 @@ LRU::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
 LRU::BlkType*
 LRU::findBlock(Addr addr, bool is_secure) const
 {
-    printf("FINDING LRU BLOCK\n");
     Addr tag = extractTag(addr);
     unsigned set = extractSet(addr);
     BlkType *blk = sets[set].findBlk(tag, is_secure);
-    printf("RETURNING LRU BLOCK\n");
     return blk;
 }
 
 LRU::BlkType*
 LRU::findVictim(Addr addr)
 {
-    printf("FINDING LRU VICTIM\n");
-    printf("assoc is %d\n", assoc);
     unsigned set = extractSet(addr);
-    // grab a replacement candidate
-    // BlkType *blk = sets[set].blks[assoc-1];
 
-    // The replacement will be found from left to right. 
-    // The first blk with RRPV of 3 will be the replaced blk
-    int block_index = 0; //This is an int used as an index for the blocks in the set
-    int loop_index = 0; //This is an int that is incrememnted when no rrpv = 3
-    int rrpv_boundry = 3; // This value is used to compare to rrpv of blocks
-    int loop_limit = 3; // Outer while loop should not exceed this value
+    BlkType *blk = NULL;
 
-    bool found_victim = false;
-    BlkType *blk = (BlkType*)malloc(sizeof(BlkType));
+	bool found_victim = false;
 
-    while (!found_victim && loop_index < loop_limit && loop_index < assoc){
-        printf("!found_victim && loop_index < loop_limit\n");
-        while (!found_victim && block_index <= rrpv_boundry){
-            printf("!found_victim && block_index <= rrpv_boundry\n");
-            blk = sets[set].blks[block_index];
-            printf("Assigned blk\n");
-            if(blk->rrpv == rrpv_boundry){
-                printf("VICTIM FOUND WITH RRPV VALUE OF %d\n", blk->rrpv);
-                found_victim = true;
-            }
-            block_index++;
-        }
-        printf("BROKE INNER LOOP\n");
+	while(!found_victim) {
+		for (int block_index = 0; block_index < assoc; block_index++) {
+			blk = sets[set].blks[block_index];
+			if (blk->rrpv == 3) {
+				found_victim = true;
+				block_index = assoc;
+			}
+		}
 
-        block_index = 0;
-        // If none of the blocks have an rrpv of 3, then loop through again 
-        // incrementing all the rrpv's
-        for (block_index = 0; block_index < 4 && !found_victim; block_index++){
-            printf("block_index = 0; block_index < 4 && !found_victim; block_index++\n");
-            blk = sets[set].blks[block_index];
-            blk->rrpv++;
-        }
-        loop_index++;
-        printf("BROKE FOR LOOP\n");
-    }
-    printf("BROKE OUTER LOOP\n");
-
+		if (!found_victim) {
+			for(int block_index = 0; block_index < assoc; block_index++){
+				BlkType *blk = sets[set].blks[block_index];
+				blk->rrpv++;
+			}
+		}	
+	}
 
     if (blk->isValid()) {
-        printf("IS BLOCK VALID?\n");
         DPRINTF(CacheRepl, "set %x: selecting blk %x for replacement\n",
                 set, regenerateBlkAddr(blk->tag, set));
     }
-    printf("RETURNING LRU VICTIM\n");
-    // BlkType *blkCopy = NULL;
-    // memcpy(blkCopy, blk, sizeof(BlkType));
-    // free(blk);
+
     return blk;
 }
 
 void
 LRU::insertBlock(PacketPtr pkt, BlkType *blk)
 {
-    printf("INSERTING BLOCK\n");
     Addr addr = pkt->getAddr();
     MasterID master_id = pkt->req->masterId();
     uint32_t task_id = pkt->req->taskId();
@@ -283,21 +251,17 @@ LRU::insertBlock(PacketPtr pkt, BlkType *blk)
     blk->task_id = task_id;
     blk->tickInserted = curTick();
 
-    //unsigned set = extractSet(addr);
-    //sets[set].moveToHead(blk);
-    // At this point do we just set the blks rrpv to 2?
+    // At this point do we just set the blks rrpv to 2
     blk->rrpv = 2;
 
     // We only need to write into one tag and one data block.
     tagAccesses += 1;
     dataAccesses += 1;
-    printf("BLOCK INSERTED\n");
 }
 
 void
 LRU::invalidate(BlkType *blk)
 {
-    printf("%s\n", "INVALIDATING BLOCK");
     assert(blk);
     assert(blk->isValid());
     tagsInUse--;
@@ -307,13 +271,8 @@ LRU::invalidate(BlkType *blk)
     blk->task_id = ContextSwitchTaskId::Unknown;
     blk->tickInserted = curTick();
 
-    // should be evicted before valid blocks
-    //unsigned set = blk->set;
-    //sets[set].moveToTail(blk);
-
     //Invalidating a block should only involve maxing out its rrpv
     blk->rrpv = 3;
-    printf("%s\n", "BLOCK INVALIDATED");
 }
 
 void
