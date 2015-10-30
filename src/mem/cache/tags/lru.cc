@@ -100,6 +100,7 @@ LRU::LRU(const Params *p)
             // locate next cache block
             BlkType *blk = &blks[blkIndex];
             blk->data = &dataBlks[blkSize*blkIndex];
+            blk->rrpv = 3;
             ++blkIndex;
 
             // invalidate new cache block
@@ -147,9 +148,9 @@ LRU::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
     }
 
     if (blk != NULL) {
-        // move this block to head of the MRU list
-        sets[set].moveToHead(blk);
-        DPRINTF(CacheRepl, "set %x: moving blk %x (%s) to MRU\n",
+        //Decrement this block's RRPV to 0
+        blk->rrpv = 0;
+        DPRINTF(CacheRepl, "set %x: setting blk %x (%s) RRPV to 0t\n",
                 set, regenerateBlkAddr(tag, set), is_secure ? "s" : "ns");
         if (blk->whenReady > curTick()
             && cache->ticksToCycles(blk->whenReady - curTick()) > hitLatency) {
@@ -157,7 +158,6 @@ LRU::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
         }
         blk->refCount += 1;
     }
-
     return blk;
 }
 
@@ -175,13 +175,33 @@ LRU::BlkType*
 LRU::findVictim(Addr addr)
 {
     unsigned set = extractSet(addr);
-    // grab a replacement candidate
-    BlkType *blk = sets[set].blks[assoc-1];
+
+    BlkType *blk = NULL;
+
+	bool found_victim = false;
+
+	while(!found_victim) {
+		for (int block_index = 0; block_index < assoc; block_index++) {
+			blk = sets[set].blks[block_index];
+			if (blk->rrpv == 3) {
+				found_victim = true;
+				block_index = assoc;
+			}
+		}
+
+		if (!found_victim) {
+			for(int block_index = 0; block_index < assoc; block_index++){
+				BlkType *blk = sets[set].blks[block_index];
+				blk->rrpv++;
+			}
+		}	
+	}
 
     if (blk->isValid()) {
         DPRINTF(CacheRepl, "set %x: selecting blk %x for replacement\n",
                 set, regenerateBlkAddr(blk->tag, set));
     }
+
     return blk;
 }
 
@@ -231,8 +251,8 @@ LRU::insertBlock(PacketPtr pkt, BlkType *blk)
     blk->task_id = task_id;
     blk->tickInserted = curTick();
 
-    unsigned set = extractSet(addr);
-    sets[set].moveToHead(blk);
+    // At this point do we just set the blks rrpv to 2
+    blk->rrpv = 2;
 
     // We only need to write into one tag and one data block.
     tagAccesses += 1;
@@ -251,9 +271,8 @@ LRU::invalidate(BlkType *blk)
     blk->task_id = ContextSwitchTaskId::Unknown;
     blk->tickInserted = curTick();
 
-    // should be evicted before valid blocks
-    unsigned set = blk->set;
-    sets[set].moveToTail(blk);
+    //Invalidating a block should only involve maxing out its rrpv
+    blk->rrpv = 3;
 }
 
 void
