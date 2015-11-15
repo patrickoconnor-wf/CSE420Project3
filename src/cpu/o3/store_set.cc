@@ -33,6 +33,7 @@
 #include "base/trace.hh"
 #include "cpu/o3/store_set.hh"
 #include "debug/StoreSet.hh"
+#include "debug/ViolationCheck.hh"
 
 StoreSet::StoreSet(uint64_t clear_period, int _SSIT_size, int _LFST_size)
     : clearPeriod(clear_period), SSITSize(_SSIT_size), LFSTSize(_LFST_size)
@@ -118,6 +119,8 @@ StoreSet::violation(Addr store_PC, Addr load_PC)
     int store_index = calcIndex(store_PC);
 
     assert(load_index < SSITSize && store_index < SSITSize);
+
+    DPRINTF(ViolationCheck, "Load Index: %d, Store Index: %d", load_index, store_index);
 
     bool valid_load_SSID = validSSIT[load_index];
     bool valid_store_SSID = validSSIT[store_index];
@@ -239,34 +242,14 @@ StoreSet::checkInst(Addr PC)
 {
     int index = calcIndex(PC);
 
-    int inst_SSID;
+    int inst_SSID = SSIT[index];
 
     assert(index < SSITSize);
 
-    if (!validSSIT[index]) {
-        DPRINTF(StoreSet, "Inst %#x with index %i had no SSID\n",
-                PC, index);
+    assert(inst_SSID < LFSTSize);
 
-        // Return 0 if there's no valid entry.
-        return 0;
-    } else {
-        inst_SSID = SSIT[index];
-
-        assert(inst_SSID < LFSTSize);
-
-        if (!validLFST[inst_SSID]) {
-
-            DPRINTF(StoreSet, "Inst %#x with index %i and SSID %i had no "
-                    "dependency\n", PC, index, inst_SSID);
-
-            return 0;
-        } else {
-            DPRINTF(StoreSet, "Inst %#x with index %i and SSID %i had LFST "
-                    "inum of %i\n", PC, index, inst_SSID, LFST[inst_SSID]);
-
-            return LFST[inst_SSID];
-        }
-    }
+    // Need to return 0 if the trace file shows violation for this PC
+    return LFST[inst_SSID];
 }
 
 void
