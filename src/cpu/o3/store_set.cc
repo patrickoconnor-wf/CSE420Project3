@@ -120,8 +120,6 @@ StoreSet::violation(Addr store_PC, Addr load_PC)
 
     assert(load_index < SSITSize && store_index < SSITSize);
 
-    DPRINTF(ViolationCheck, "Load Index: %d, Store Index: %d", load_index, store_index);
-
     bool valid_load_SSID = validSSIT[load_index];
     bool valid_store_SSID = validSSIT[store_index];
 
@@ -179,6 +177,8 @@ StoreSet::violation(Addr store_PC, Addr load_PC)
                     load_SSID, load_PC, store_PC);
         } else {
             SSIT[load_index] = store_SSID;
+
+            DPRINTF(ViolationCheck, "Load Index: %d, Store Index: %d", load_index, store_index);
 
             DPRINTF(StoreSet, "StoreSet: Store had smaller store set: %i; "
                     "for load %#x, store %#x\n",
@@ -248,8 +248,43 @@ StoreSet::checkInst(Addr PC)
 
     assert(inst_SSID < LFSTSize);
 
-    // Need to return 0 if the trace file shows violation for this PC
-    return LFST[inst_SSID];
+    if (index == 504 ||
+        index == 88  ||
+        index == 211 ||
+        index == 207 ||
+        index == 241 ||
+        index == 237 ||
+        index == 272 ||
+        index == 322 ||
+        index == 215 ||
+        index == 245 ||
+        index == 280 ||
+        index == 333 ||
+        index == 216 ||
+        index == 232 ||
+        index == 246 ||
+        index == 281 ||
+        index == 268 ||
+        index == 195 ||
+        index == 508 ||
+        index == 531 ||
+        index == 524 ||
+        index == 739 ||
+        index == 254 ||
+        index == 263 ||
+        index == 333 ||
+        index == 195 ||
+        index == 255 ||
+        index == 815 ||
+        index == 721 ||
+        index == 290 ||
+        index == 338 ||
+        index == 509
+    ) {
+        return LFST[inst_SSID];
+    }
+
+    return 0;
 }
 
 void
