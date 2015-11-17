@@ -33,6 +33,7 @@
 #include "base/trace.hh"
 #include "cpu/o3/store_set.hh"
 #include "debug/StoreSet.hh"
+#include "debug/ViolationCheck.hh"
 
 StoreSet::StoreSet(uint64_t clear_period, int _SSIT_size, int _LFST_size)
     : clearPeriod(clear_period), SSITSize(_SSIT_size), LFSTSize(_LFST_size)
@@ -177,6 +178,8 @@ StoreSet::violation(Addr store_PC, Addr load_PC)
         } else {
             SSIT[load_index] = store_SSID;
 
+            DPRINTF(ViolationCheck, "Load Index: %d, Store Index: %d", load_index, store_index);
+
             DPRINTF(StoreSet, "StoreSet: Store had smaller store set: %i; "
                     "for load %#x, store %#x\n",
                     store_SSID, load_PC, store_PC);
@@ -239,34 +242,49 @@ StoreSet::checkInst(Addr PC)
 {
     int index = calcIndex(PC);
 
-    int inst_SSID;
+    int inst_SSID = SSIT[index];
 
     assert(index < SSITSize);
 
-    if (!validSSIT[index]) {
-        DPRINTF(StoreSet, "Inst %#x with index %i had no SSID\n",
-                PC, index);
+    assert(inst_SSID < LFSTSize);
 
-        // Return 0 if there's no valid entry.
-        return 0;
-    } else {
-        inst_SSID = SSIT[index];
-
-        assert(inst_SSID < LFSTSize);
-
-        if (!validLFST[inst_SSID]) {
-
-            DPRINTF(StoreSet, "Inst %#x with index %i and SSID %i had no "
-                    "dependency\n", PC, index, inst_SSID);
-
-            return 0;
-        } else {
-            DPRINTF(StoreSet, "Inst %#x with index %i and SSID %i had LFST "
-                    "inum of %i\n", PC, index, inst_SSID, LFST[inst_SSID]);
-
-            return LFST[inst_SSID];
-        }
+    if (index == 504 ||
+        index == 88  ||
+        index == 211 ||
+        index == 207 ||
+        index == 241 ||
+        index == 237 ||
+        index == 272 ||
+        index == 322 ||
+        index == 215 ||
+        index == 245 ||
+        index == 280 ||
+        index == 333 ||
+        index == 216 ||
+        index == 232 ||
+        index == 246 ||
+        index == 281 ||
+        index == 268 ||
+        index == 195 ||
+        index == 508 ||
+        index == 531 ||
+        index == 524 ||
+        index == 739 ||
+        index == 254 ||
+        index == 263 ||
+        index == 333 ||
+        index == 195 ||
+        index == 255 ||
+        index == 815 ||
+        index == 721 ||
+        index == 290 ||
+        index == 338 ||
+        index == 509
+    ) {
+        return LFST[inst_SSID];
     }
+
+    return 0;
 }
 
 void
